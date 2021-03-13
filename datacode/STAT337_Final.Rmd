@@ -1,0 +1,186 @@
+---
+title: "STAT337_Final"
+author: "Sidra Sohail"
+date: "Spring 2020"
+output: html_document
+---
+
+```{r}
+```
+**Note: the data in PimaIndiansDiabetes changes each time it is run, so numbers in the comments may not be correct.**
+
+```{r}
+library(mlbench)
+data(PimaIndiansDiabetes)
+data<-data.frame(PimaIndiansDiabetes)
+final<-data[sample(nrow(data), 500), ]
+
+final$diabetes<-final$diabetes == "pos" 
+# want the columns to be numeric
+final$pregnant<-as.numeric(final$pregnant)
+final$glucose<-as.numeric(final$glucose)
+final$pressure<-as.numeric(final$pressure)
+final$triceps<-as.numeric(final$triceps)
+final$insulin<-as.numeric(final$insulin)
+final$mass<-as.numeric(final$mass)
+final$pedigree<-as.numeric(final$pedigree)
+final$age<-as.numeric(final$age)
+
+
+log_m<-glm(diabetes~.,family=binomial(logit),data=final)
+summary(log_m)
+```
+Based on summary of log_m model, the covariates pregnant, glucose,
+mass, and pedigree are significant at alpha = 0.05 as their
+p-value is less than the 0.05 alpha value with glucose with the lowest p-value.
+Thus, they are significant for odds of diabetes at alpha = 0.05.
+
+```{r}
+exp(log_m$coefficients) #e^(Beta) = ODDS
+```
+Pregnant covariate: For 1 unit increase in the pregnant covariate
+the odds of being diabetic increases by 1.1065.
+Pressure covariate: For 1 unit increase in the glucose covariate
+the odds of being diabetic increases by 0.9891 (9.891028e-01). This 
+odds is very close to 1, so we can conclude that pressure and odds of
+being diabetic are independent.
+
+```{r}
+library(MASS)
+stepAIC(log_m, direction="both")
+summary(log_m)
+```
+Insulin and triceps were removed from the model, as they had highly 
+insignificant p-values at the alpha = 0.05 level as shown in the 
+summary(log_m) command.
+
+```{r}
+fitted_log_m<-glm(formula = diabetes ~ pregnant + glucose + pressure + mass + 
+      pedigree + age, family = binomial(logit), data = final)
+```
+Logistic regression was used for modelling the probability
+of diabetes among these individuals, because we wanted the response
+to be categorical and were interested in a response that is 
+diabetes or not diabetes. Thus, forcing the diabetes response to be 
+binary from the original "neg" or "pos" response.
+
+```{r}
+##install.packages("caret")
+library(caret)
+k<-8
+acc <- NULL
+set.seed(123)
+for(i in 1:k){
+  Train <- createDataPartition(final$diabetes, p=0.75, list=FALSE)
+  training <- data[ Train, ]
+  testing <- data[ -Train, ]
+  log_m1<-glm(formula = diabetes ~ pregnant + glucose + pressure + mass + 
+            +       pedigree + age, family = binomial(logit), data = training)
+  pred<-predict(log_m1, newdata=testing,type="response")
+  results <- ifelse(pred > 0.5,1,0)
+  testing$diabetes<- testing$diabetes == "pos"
+  answers <- testing$diabetes
+  misClasificError <- mean(answers != results)
+  acc[i]=1-misClasificError
+}
+mean(acc)
+#[1] 0.7907125
+par(mfcol=c(1,2))
+
+# Histogram of accuracy
+hist(acc,xlab='Accuracy',ylab='Freq',
+     col='cyan',border='blue',density=30)
+
+# Boxplot of accuracy
+boxplot(acc,col='cyan',border='blue',horizontal=T,xlab='Accuracy',
+        main='Accuracy CV')
+```
+From k-fold cross-validation, our model has 79.07% accuracy which 
+is further shown through the boxplot and histogram.
+
+```{r}
+#Leave one out cross validation
+a1 <-NULL
+x<-final[sample(1:nrow(final)),]
+set.seed(123)
+for(i in 1:nrow(x))
+{
+  # Train-test splitting
+  # 149 samples -> fitting
+  # 1 sample -> testing
+  train <- x[-i,]
+  test <- x[i,]
+  
+  # Fitting
+  log_m2<-glm(formula = diabetes ~ pregnant + glucose + pressure + mass + 
+                +       pedigree + age, family = binomial(logit), data = train)
+ 
+  # Predict results
+  pred1 <- predict(log_m2,newdata=test,type="response")
+  
+  # If prob > 0.5 then 1, else 0
+  results1 <- ifelse(pred1 > 0.5,1,0)
+  
+  # Actual answers
+  answers1 <- test$diabetes
+  
+  # Calculate accuracy
+  # Calculate accuracy
+  misClasificError1 <- mean(answers1 != results1)
+  a1[i] <- 1-misClasificError1
+  
+  # Collecting results
+  a1[i] <- 1-misClasificError1
+}
+
+# Average accuracy of the model
+mean(a1)
+#[1] 0.752
+hist(a1,xlab='Accuracy',ylab='Freq',main='Accuracy LOOCV',
+     col='cyan',border='blue',density=30)
+```
+From leave one out cross-validation, our model has 75.2% accuracy.
+Thus, with our model having 500 observarions and the K-fold cross-validation
+having a higher accuracy, the k-fold cross-validation is preferred here.
+
+```{r}
+final$diabetes<-as.numeric(final$diabetes)
+
+#testing for normality
+shapiro.test(final$diabetes)
+shapiro.test(final$mass)
+shapiro.test(final$pressure)
+```
+All these variables, have highly significant p-values,
+thus, we reject the null hypothesis of normality and can
+conclude that they are not normal.
+
+```{r}
+cor.test(final$pressure,final$mass, method = "spearman")
+```
+Based on the p-value of 8.708e-12, we reject the null hypothesis 
+and conclude that there is a strong positive association between pressure and BMI (mass).
+
+```{r}
+#testing if variances are equal
+var.test(final$mass~final$diabetes)
+```
+the variances are equal as the p-value is insignificant and the confidence 
+interval includes 1.
+
+```{r}
+t.test(final$mass~final$diabetes,var.equal=TRUE)
+```
+Null hypothesis: There is no significant difference in the average BMI 
+between the two groups (diabetes positive and negative), true difference in means 
+is equal to 0 (mu1 = mu2).
+Alternative hypothesis: There is a significant difference in the average BMI 
+between the two groups (diabetes positive and negative), true difference in means 
+is not equal to 0 (mu1 != mu2).
+The p-value is 1.262e-07, thus, we reject the null hypothesis. 
+We can conclude that there is a significant difference in the average BMI 
+between the two groups (diabetes positive and negative).
+
+```{r}
+sumdiab = sum(final$diabetes)
+sumdiab
