@@ -1,5 +1,4 @@
-***Note: the data in PimaIndiansDiabetes changes each time it is run, so numbers in the comments may not be correct.***
-
+### Note: the data in PimaIndiansDiabetes changes each time it is run, so numbers in the comments may not be correct. ###
 library(mlbench)
 data(PimaIndiansDiabetes)
 data<-data.frame(PimaIndiansDiabetes)
