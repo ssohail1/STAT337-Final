@@ -152,6 +152,5 @@ t.test(final$mass~final$diabetes,var.equal=TRUE)
 ##We can conclude that there is a significant difference in the average BMI 
 #between the two groups (diabetes positive and negative).
 
-
 sumdiab = sum(final$diabetes)
 sumdiab
